@@ -30,14 +30,16 @@ r_sdos <- radCor(r, metaData = m, method = "sdos", hazeValues = h, bandSet=2:6) 
 #plotRGB(r_sdos, r=4,g=3,b=2, stretch = "lin")
 
 # Indices espectrales ----
- #For Landsat 8 data, NDVI = (Band 5 – Band 4) / (Band 5 + Band 4)
+#For Landsat 8 data, NDVI = (Band 5 – Band 4) / (Band 5 + Band 4)
 ndvi <- ndvi(r_sdos[['B5_sre']], r_sdos[['B4_sre']]) 
 #For Landsat 8 data, NDWI = (Band 5 – Band 6) / (Band 5 + Band 6)
 ndwi <- ndvi(r_sdos[['B5_sre']], r_sdos[['B6_sre']]) 
+# Calcular built-up
+built <- ndbi(r_sdos[['B6_sre']], r_sdos[['B5_sre']])
+
 names(ndvi) <- 'ndvi'
 names(ndwi) <- 'ndwi'
-#plot(ndvi)
-#plot(ndwi)
+names(built) <- 'built'
 
 #### Corecciones radiometricas
 # Banda TIR de DN a BT
@@ -46,8 +48,8 @@ names(bt) <- 'TIR_bt'
 
 
 # Raster stack de bandas corregidas y TIR 10 en BT
-r_sdos <- stack(r_sdos, ndvi, ndwi, bt)
-#plotRGB(r_sdos, 6,3,2, stretch = 'lin')
+r_sdos <- stack(r_sdos, ndvi, ndwi, built, bt)
+#plotRGB(r_sdos, 8,5,2, stretch = 'lin')
 
 
 # saving output ---
@@ -68,9 +70,7 @@ writeRaster(r_sdos, "./raster/LC08_L1TP_224079_20200518_20200527_01_T1_sdos.tif"
 # plotRGB(r_top,r=4,g=3,b=2,stretch = "lin")
 
 
-# # Calcular built-up
-# built <- ndbi(swir, nir)
-# plot(built, col=colorRampPalette(c("white", "black"))(255))
+
 # 
 # # Calcular emisividad, obteniendo como output proporcion de la vegetacion
 # em <- emissivity(veg, enonveg = 0.95, eveg = 0.99, pveg = TRUE)

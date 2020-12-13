@@ -1,8 +1,5 @@
 library(sf)
 library(raster)
-#library(rgeos)
-#library(ggplot2)
-#library(randomForest)
 library(tibble)
 library(tmap)
 

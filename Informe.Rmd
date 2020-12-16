@@ -2,30 +2,35 @@
 title: "Análisis de islas de calor urbano en Posadas, Misiones - Argentina"
 author: "Felipe Sodré M. Barros"
 date: "12/12/2020"
-output: html_document
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(RStoolbox)
+library(readr)
 ```
 
 ## Introducción  
 
 En el presente informe se pretende plasmar los conocimientos adquiridos en el curso-taller **"Análisis de islas de calor urbano empleando el paquete LSTtools en R"** a cargo del Dr. Richard Lemoine-Rodriguez.
 
-La idea es explorar las hrramientas y análsis sin mucha preocupación con su rigor científico pero de alguna forma ya ir identificando potencialidades y lpimites en el uso de herramientas para análisis de islas de calor urbano para la identificación de servicios ambientales. En este caso, los servicios ambientales de las forestas por el mantenimiento de condiciones favorables de temperatura a la población.
+La idea es explorar las herramientas y análsis de islas de calor de manera experimental para, de alguna manera ya ir identificando potencialidades y límites en el uso de dichas herramientas. Lo que se busca es articular la información y conocimiento adiquirido por los análisis de ISlas de Calor con los servicios ambientales. En este caso, los servicios ambientales de las forestas por el mantenimiento de condiciones favorables de temperatura a la población.
 
 Ya que no dispongo de todos los materiales para el análsisis completo, buscaré desarrrollar los materiales que sean necesário y que agreguen conocimientos a los resutados, como por ejemplo, un mapa de cobertura de la tierra.
 
 ## Descripción del área y ciudad de estudio
 
-En el presente estudio, se hará un análisis para el municipio de Posadas, localizado en la provincia de Misiones - Argentina \ref{mapaLocalizacao}. Dicha provincia es también conocida como "mesopotamia" de Argentina ya que la misma se encuentra limitada por los dos ríos más inportantes en escala regional: el rio Paraná y el rio Uruguay. Posadas, en este sentido está ubicada en las orillas del rio Paraná en el límite Argentina/Paraguay en la región sur de la provincia.
+En el presente estudio, se hará un análisis para el municipio de Posadas, localizado en la provincia de Misiones - Argentina (\ref{mapaLocalizacao}). Dicha provincia es también conocida como "mesopotamia" de Argentina ya que la misma se encuentra limitada por los dos ríos más inportantes en escala regional: el rio Paraná y el rio Uruguay. Posadas, en este sentido está ubicada en las orillas del rio Paraná en el límite Argentina/Paraguay en la región sur de la provincia.
 
 ![Mapa de localización de Posadas, Misiones - Argentina \label{mapaLocalizacao}](./outputs/mapaLocalizacao.png)
 
+![Mapa de ecorregiones \label{mapaVegetacion}](./outputs/mapaVegetacion.png)
 
-Se trata de un área de clima subtropial sin estación seca pero por su ubicación, Posadas se encuentra en área de transición vegetacional de vegetación densa hacia espinales.
+Se trata de un municipio en área de transición de tres biomas: *Grasslands & Savannas* (conocido localmente por "Campos y Malezales");  *Tropical & Subtropical Grasslands, Savanna & Shrublands* ("Esteros del Iberá");  *Topical & Subtropical Moist Broadleaf forests* ("Selva Paranaense"). Posee clima subtropial sin estación seca.
 
 ## Materiales
 
@@ -41,24 +46,29 @@ Para el presente estudio se utilizó el sensor `r m$sensor[1]` del  satelite `r 
 Esta misma imagen fue utilizada para el análisis de cobertura de la tierra bien como para el análisis de islas de calor urbano.
 
 ## Métodos
-El primer paso que se hizo fue el preprocesamiento ya que el resultado del mismo será utilizado en todos los análisis. El miso fue desarrollado a partir del script *01_proprocessing* ubicado en la carpeta 'scripts'.
+El primer paso que se hizo fue el preprocesamiento ya que el resultado del mismo será utilizado en todos los análisis. El mismo fue desarrollado a partir del script *01_proprocessing* ubicado en la carpeta 'scripts'.
 
 ### Preprocesamiento
-1. Corrección
-1. Indices espectrales
+1. Corrección atmosférica y calibración radiométrica;
+1. Corrección topográfica:
+  1. Mosaico de las cenas DEM 30 metros;
+1. Indices espectrales:
   1. NDVI;
   1. NDWI;
+  1. NDBI;
 
-La idea de usar algunos indices espectrales para apoyar a la clasificación de la cobertura de la tierra y análisis de servicios ambientales se justifica pela presencia de áreas de foresta densa en la región, por eso el uso del NDVI, y presencia del rioi Paraná, justificando el uso del NDWI.
+Las correcciones atmosfericas y calibración radiompetricas se utilizaron las informaciones presentes en el metadato del censor. La corrección atmosferica, en específico se utilizó el método `sdos`. Ya con relación a la corrección topográfica, se descargó de la pagina del [Instituto Geográfico Nacinal de Argentina (IGN)](https://www.ign.gob.ar/category/tem%C3%A1tica/geodesia/mde-ar) las cenas de Modelo Digital de Elevación (DEM, en inglés) que cubra todo el minicípio de Posadas. Para eso, fue necesário hace el mosaico de las cenas `2757-29` y `2757-30`, bien como proyectar el raster al mismo Sistema de Referencia de Coordenadas (SRC) de los datos de Landsat (todos los procedimientos, están plasmados en el script *01_preprocessing_dem*).
+
+La idea de usar algunos indices espectrales para apoyar a la clasificación de la cobertura de la tierra y análisis de servicios ambientales se justifica pela presencia de áreas de foresta densa en la región, por eso el uso del NDVI, y presencia del rio Paraná, justificando el uso del NDWI. El NDBI para facilitar el análisis de la influencia de áreas construidas;
 
 ### Clasificación cobertura de la tierra
-Los pasos desarrollados fueron:
+Considerando los datos satelitales ya preprocesados, se desarrolló los siguintes etapas para la clasificación de cobertura del suelo:
 
 1. Definición de cantidad de clases;
 1. entrenamiento del modelo Kmeans
 1. Predicción
 
-Por prueba y error se definió la classificación de cobertura de la tierra en 5 clases distantas (\ref{cobtierra}):
+La definición de la cntidad de clases se hizo por análisis visual de la imagen considerando el conocimineto del área. De esta forma se optó por la clasificación en 5 clases distantas (\ref{cobtierra}):
 
 1. Herbacea / pasto
 1. Agua
@@ -66,14 +76,31 @@ Por prueba y error se definió la classificación de cobertura de la tierra en 5
 1. Solo expuesto
 1. Area urbana
 
-Vários metodos podrían haber sido utilizados de forma a tornar dicha definición más 'científica'/menos subjetiva, pero por la falta de tiempo, los mismos quedarán para otro momento.
+Vários metodos podrían haber sido utilizados de forma a tornar dicha definición más 'científica'/menos subjetiva, pero por la falta de tiempo, los mismos quedarán para otro momento. Los procedimientos desarrollados están en el script *02_land_cover*.
 
 ![\label{cobtierra}](./outputs/coberturaTierra.png)
 
-### f
+### Análisis de Islas de Calor Urbano
 
+1. Calculo de emissividad
+1. Calculo de LST - *Land Surface Temperatura*  
+
+En el calculo de emissividad, se consideró valores de vegetación y no vegetación a partir de análisis visuales para el área de estudio considerando las imagenes de satelite utilizada y conocimientos del área. Los valores de proporción de vegtación y emisividad para vegetación fué de 0.8, y proporción de no vegetación y emisividade no vegetación 0.7.
 
 ## Resultados
+
+![\label{LSTPosadas}](./outputs/LST_posadas.png)
+
+Al calcular las estadísticas de Islas de Calor Urbano para el municiío de Posadas, se pudo identificar una diferencia pormedia de casi dos grados entre área forestal y área urbana;
+Promedio de area urbana es menor que promedio de suelo expuesto y agua.
+La mayor variación en temperatura encontrada entre temperatura minima y maximo fue en Area urbana que, inclusive tuve el menos valor de temperatura mínima.
+La menor variabilidad de teperatura fe en la clase agua
+Herbacea y pasto tivueron variación de temperatura similar a la de la clase de foresta;
+
+```{r uhi, echo = FALSE, message=FALSE}
+uhi <- read_csv("./outputs/uhi_stats.csv")
+knitr::kable(uhi, caption = "Estadísticas de islas de calor urbana",  align = "l", position = "c", format = 'html', padding = 0)
+```
 
 ## Interpretaciones y conclusiones
 

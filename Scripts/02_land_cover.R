@@ -5,16 +5,16 @@ library(tmap)
 
 
 # loading data ----
-r_sdos <- stack("./raster/LC08_L1TP_224079_20200518_20200527_01_T1_sdos.tif")
+r_sdos <- stack("./raster/LC08_L1TP_224079_20201212_20201218_01_T1_sdos.tif")
 
 posadas <- read_sf('./shp/muni_posadas.shp')
 
 # Processing data ----
 # Identifying pxls w/ NA
-na_px <- which(!is.na(getValues(r_sdos[[1]])))
+non_na_px <- which(!is.na(getValues(r_sdos[[1]])))
 
 # Creating data to Kmeans analysis
-mydata <- na.omit(values(r_sdos))
+mydata <- na.omit(values(r_sdos[[1]]))
 mydata <- scale(mydata) %>% as_tibble() # standardize variables
 
 # training algorithm for unsupervised ----
@@ -35,7 +35,7 @@ mydata <- data.frame(mydata, fit$cluster) %>% as_tibble()
 # creating a raster layer to recieve goup values
 landCover <- r_sdos[[1]]
 # changing pixel values to group values
-landCover[na_px] <- mydata$fit.cluster
+landCover[non_na_px] <- mydata$fit.cluster
 
 map <- tm_shape(landCover) +
   tm_raster(palette = 'cat', style = 'cat', legend.show = FALSE) +

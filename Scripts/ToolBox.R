@@ -2,6 +2,11 @@ pre_processing <- function(
   rasterPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1",
   shapePath = './shp/muni_posadas.shp',
   demPath = "./raster/dem_30m.tif",
+  ndvi = TRUE,
+  evi = TRUE,
+  savi = TRUE,
+  ndwi = TRUE,
+  ndbi = TRUE,
   ...){
   library(raster)
   library(RStoolbox)
@@ -37,7 +42,7 @@ pre_processing <- function(
     
     r_top <- topCor(r_sdos, dem = dem, metaData = meta, method = "minnaert")
 
-  }
+  } else {r_top <- r_sdos}
   
   # Indices espectrales ----
   if (ndvi){
@@ -81,7 +86,7 @@ pre_processing <- function(
   
   
   # Raster stack de bandas corregidas y TIR 10 en BT
-  r_top <- stack(r_top, ndvi, ndwi, built, bt)
+  r_top <- stack(r_top, bt)
   #plotRGB(r_sdos, 8,5,2, stretch = 'lin')
   
   if (!is.null(shapePath)){
@@ -96,7 +101,7 @@ pre_processing <- function(
   }
   
   # saving output ---
-  writeRaster(r_sdos, paste0(rasterPath, "/", tail(stringr::str_split(rasterPath, '/')[[1]], 1), "_sdos.tif"), overwrite = TRUE)
+  writeRaster(r_top, paste0(rasterPath, "/", tail(stringr::str_split(rasterPath, '/')[[1]], 1), "_sdos.tif"), overwrite = TRUE)
 }
 
 optimize_groups <- function(initialGroups = 4, 

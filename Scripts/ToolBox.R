@@ -52,10 +52,11 @@ pre_processing <- function(
     r_top <- stack(r_top, ndvi)
   }
   if (evi){
+    # In Landsat 8, EVI = 2.5 * ((Band 5 – Band 4) / (Band 5 + 6 * Band 4 – 7.5 * Band 2 + 1)).
     evi <- overlay(
       r_top[['B5_sre']], r_top[['B4_sre']], 
       r_top[['B2_sre']], 
-      fun=function(x,y,z){(2.5*(x-y)/((x+6)*(y-7.5)*(z+1)))})
+      fun=function(x,y,z){2.5*((x-y)/((x+6*y-7.5*z+1)))})
     names(evi) <- 'evi'
     r_top <- stack(r_top, evi)
   }
@@ -74,7 +75,7 @@ pre_processing <- function(
   }
   if(ndbi){
   # Calcular built-up
-    built <- ndbi(r_top[['B6_sre']], r_top[['B5_sre']])
+    ndbi <- ndbi(r_top[['B6_sre']], r_top[['B5_sre']])
     names(ndbi) <- 'ndbi'
     r_top <- stack(r_top, ndbi)
   }
@@ -165,6 +166,8 @@ landcover <- function(
   library(raster)
   library(tibble)
   library(tmap)
+  library(dplyr)
+  library(tidyr)
   
   # Getting project name
   name <- sub('.tif','',
@@ -185,7 +188,7 @@ landcover <- function(
   non_na_px <- which(!is.na(getValues(r_sdos[[1]])))
   
   # Creating data to Kmeans analysis
-  mydata <- na.omit(values(r_sdos[[1]]))
+  mydata <- na.omit(values(r_sdos))
   mydata <- scale(mydata) %>% as_tibble() # standardize variables
 
   # optimizing amoutn of groups ----
@@ -198,7 +201,7 @@ landcover <- function(
     algorithm = c("Hartigan-Wong",
                   "Lloyd",
                   "Forgy",
-                  "MacQueen")[1], iter.max = 100)
+                  "MacQueen")[1], iter.max = 300)
   
   # Saving statistical results
   save(fit, file = paste0('./outputs/', name , '_KmeansFit.RData'))
@@ -206,16 +209,310 @@ landcover <- function(
   # append cluster assignment
   mydata <- data.frame(mydata, fit$cluster) %>% as_tibble()
   
+  # Creating spectral sign plot
+  head(mydata)
+  names(mydata) <- c(paste0("B", 1:nlayers(r_sdos)), "Class")
+  t <- tidyr::pivot_longer(mydata, !Class, names_to = "bands", values_to = "RT") %>% group_by(bands, Class) %>% 
+    summarise(
+      mean = mean(RT),
+      sd = sd(RT),
+      # n = sum(RT),
+      # se = sd/sqrt(n)
+    ) #%>% filter(bands != "B10")
+  
+  spectralSign <- ggplot(t, aes(x=as.factor(bands),
+                                y=mean, 
+                                group = as.factor(Class))) + 
+    geom_ribbon(aes(ymin=mean-sd, ymax=mean+sd), alpha=0.2) + 
+    geom_line(
+      aes(colour = as.factor(Class))) +
+    labs(x = "Number of Clusters", 
+         y = "Within groups sum of squares") + 
+    theme(text = element_text(size = 17)) + guides(colour=guide_legend(title=NULL))
+  if (!file.exists("./plots/")) dir.create("./plots/")
+  ggsave(paste0("./plots/", name, "_SpectralSign.png"), dpi = 300)
+  
+  
+  density <- mydata %>% tidyr::pivot_longer(!Class, names_to = "bands", values_to = "RT") %>% 
+    ggplot(., aes(x=RT, group=as.factor(Class), fill=as.factor(Class))) +
+    geom_density(alpha = 0.75) + 
+    xlim(-2.75, 2.75) +
+    geom_vline(
+      data = . %>% group_by(Class) %>% summarise(grp.mean = mean(RT)),
+      aes(xintercept=grp.mean, color = as.factor(Class)), linetype="dashed", size=1) + theme(panel.background = element_blank(),
+          panel.grid.major = element_line(color = "gray", size = 0.5),
+          panel.grid.minor = element_line(color = "gray", size = 0.5),
+          axis.ticks = element_blank()) +
+    labs(x = "Reflectance Value",
+         y = "Density",
+         title = "Density histograms of spectral profiles",
+         subtitle = "Vertical lines represent mean group reflectance values")
+  ggsave(paste0("./plots/", name, "_SpectralDensity.png"), dpi = 300)
+  
+  
   # creating a raster layer to recieve goup values
   landCover <- r_sdos[[1]]
   # changing pixel values to group values
-  landCover[non_na_px] <- mydata$fit.cluster
+  landCover[non_na_px] <- mydata$Class
   
   map <- tm_shape(landCover) +
-    tm_raster(palette = 'cat', style = 'cat', legend.show = FALSE) +
-    tm_style(style = 'natural')
-  tmap_save(map, paste0("./outputs/", name, "_landcover.png"))
+    tm_raster(palette = 'cat', style = 'cat', legend.show = TRUE, title = "Landcover class") +
+    tm_layout(legend.outside = FALSE, legend.position = c("RIGHT", "BOTTOM")) +
+    tm_graticules(lwd = 0) +
+    tm_compass(position = c("RIGHT", "TOP"))
   
-  writeRaster(landCover, paste0("./raster/", name, "/", name, "_landCover.tif"), overwrite = TRUE)
+  tmap_save(map, paste0("./plots/", name, "_landcover.png"))
   
+  rgb <- r_sdos[[1:8]] %>% stretch()
+  rgb <- tm_shape(rgb) +
+    tm_rgb(r = 4, g=3, b=1) +
+    tm_graticules(lwd = 0) +
+    tm_compass()
+  
+  composition <- tmap_arrange(rgb, map)
+  tmap_save(composition, paste0("./plots/", name, "_composition.png"))
+  
+  strsplited <- stringr::str_split(name, "_")
+  namePath <- paste(strsplited[[1]][1:(length(strsplited[[1]])-2)], collapse = '_')
+  
+  writeRaster(landCover, paste0("./raster/", namePath, "/", name, "_landCover.tif"), overwrite = TRUE)
+}
+
+automate_suhi <- function(
+  rasterPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip.tif",
+  ndviLayer = 6,
+  ndbiLayer = 10, 
+  btLayer = 11, # band temperature layer
+  urbanID = 5,
+  shapePath = './shp/muni_posadas.shp',
+  landcoverPath = './raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif',
+  lstPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lst.tif"
+  ){
+  library(sf)
+  library(raster)
+  library(LSTtools)
+  library(tmap)
+  library(ggplot2)
+  library(usdm)
+  library(tibble)
+  
+  # defining project name
+  name <- sub('.tif','',
+              tail(stringr::str_split(
+                rasterPath, '/')[[1]], 1))
+  strsplited <- stringr::str_split(name, "_")
+  namePath <- paste(strsplited[[1]][1:(length(strsplited[[1]])-2)], collapse = '_')
+  
+  # loading data ----
+  r_sdos <- stack(rasterPath)
+  posadas <- read_sf(shapePath)
+  lst <- raster(lstPath)
+  # leer land cover
+  cover_r <- raster(landcoverPath)
+  
+  # emissivity calculation based on NDVI----
+  em <- emissivity(r_sdos[[ndviLayer]], pveg = TRUE)
+  
+  # maps
+  emissivity <- tm_shape(em[[1]]) +
+    tm_raster(style='fisher') +
+    tm_layout(legend.outside = FALSE, legend.position = c("RIGHT", "BOTTOM")) +
+    tm_graticules(lwd = 0)
+  #tmap_save(emissivity, paste0("./plots/", name, "_emissivity.png"))
+  
+  pveg <- tm_shape(em[[2]]) +
+    tm_raster(style='fisher', title = "Proportion of vegetation") +
+    tm_layout(legend.outside = FALSE, legend.position = c("RIGHT", "BOTTOM")) +
+    tm_graticules(lwd = 0)
+  #tmap_save(pveg, paste0("./plots/", name, "_pveg.png")
+  
+  both <- tmap_arrange(emissivity, pveg)
+  tmap_save(both, paste0("./plots/", name, "_em_pveg.png"))
+  
+  # Calcular LST ----
+  lst_posadas <- landsat_lst(r_sdos[[btLayer]], em[[1]], 'L8', conv = FALSE)
+  
+  # saving raster result
+  writeRaster(lst_posadas, paste0("./raster/", namePath, "/", name, "_lst.tif"), overwrite = TRUE)
+  
+  # saving map
+  lst <- tm_shape(lst_posadas) + 
+    tm_raster(style = 'fisher', title = 'Temperatura °C', palette = 'YlOrRd') +
+    tm_layout(legend.outside = FALSE, 
+              legend.position = c("RIGHT", "BOTTOM"),
+              main.title = "Land Surface Temperature") +
+    tm_graticules(lwd = 0)
+  tmap_save(lst, paste0("./plots/", name, "_LST.png"))
+  
+  #Calcular estadisticas zonales ----
+  
+  # Urban Heat Island UHI ----
+  # Calcular estadisticas basicas
+  st <- uhi_stats(lst_posadas, cover_r, id=urbanID) #calcula las diferencias con el id dos, area urbana
+  st$clase <- c('Foresta', 'Pasto', 'Suelo exposto', 'Agua', 'Area urbana')
+  write.csv(st, paste0("./outputs/", name, "_uhi_stats.csv"), row.names = FALSE)
+  
+  # Calcular hot island area HIA ----
+  lst_city <- lst_posadas * (cover_r == 5) # duvida: HIa so para ciudad
+  plot(lst_city)
+  # HIA
+  hia_cal <- hia(lst_city)
+  #write_csv(as_tibble(hia_cal[2:length(hia_cal)]), "./outputs/hia.csv")
+  
+  # saving map
+  hia <- tm_shape(hia_cal[[1]]) + 
+    tm_raster(style = 'fisher', title = 'Temperatura °C', palette = 'YlOrRd') +
+    tm_layout(legend.outside = FALSE, 
+              legend.position = c("RIGHT", "BOTTOM"),
+              main.title = "Islas de calor urbano - Posadas, Misiones",
+              main.title.size = .9) +
+    tm_graticules(lwd = 0)
+  # tmap_save(hia, './outputs/HIA_posadas_AU.png')
+  
+  st <- raster::stretch(r_sdos)
+  rgb <- r_sdos[[1:8]] %>% stretch()
+  rgb <- tm_shape(rgb) +
+    tm_rgb(r = 4, g=3, b=1) +
+    tm_graticules(lwd = 0) +
+    tm_compass()
+  composition <- tmap_arrange(rgb, hia)
+  tmap_save(composition, paste0('./plots/', name, '_hiaMap.png'))
+  
+  # Correlacion ----
+
+  # spots <- getis(lst, dist = 70, p=0.05)
+  print("running LISA")
+  g <- lisa(lst, d1 = 0, d2 = 70, statistic = "G*")
+  print("LISA done")
+  # tm_shape(g) +
+  #   tm_raster(style = "fisher")
+  
+  print("Converting to polygon")
+  pv <- round(2 * pnorm(-abs(getValues(g))), 7)
+  pv <- as.data.frame(pv)
+  FDR <- round(p.adjust(pv[, 1], "fdr"), 7)
+  g <- round(g, 2)
+  writeRaster(g, paste0("./raster/", namePath, "/", name, "_lisa.tif"))
+  # gdal_polygonize("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.tif", "./shp//LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.shp")
+  v.g <- clamp(g)
+  v.g <- rasterToPolygons(v.g, na.rm = TRUE)
+  v.g <- st_as_sf(v.g)
+  names(v.g)[1] <- "Z.scores"
+  v.g$FDR <- na.omit(FDR)
+  v.g$cluster <- ifelse(v.g$Z.scores > 0 & v.g$FDR < 0.05, "Hot spot", ifelse(v.g$Z.scores < 0 & v.g$FDR < 0.05, "Cold spot", "No sig"))
+  
+  write_sf(st_as_sf(v.g), paste0("./shp/", name, "_getis_analysis.shp"), overwrite = TRUE)
+  
+  print("Mapa Area correlação")
+  AreasCorrelacion <- tm_shape(v.g) +
+    tm_fill("cluster") +
+    tm_layout(legend.outside = FALSE, 
+            legend.position = c("RIGHT", "BOTTOM"),
+            main.title = "Islas de calor/frío - Posadas, Misiones",
+            main.title.size = .9) +
+    tm_graticules(lwd = 0)
+  tmap_save(AreasCorrelacion, paste0("./plots/", name, "_AreasCorrelacionG.png"))
+  
+  indiceG <- tm_shape(g) +
+    tm_raster(style = 'fisher') +
+    tm_layout(legend.outside = FALSE,
+              legend.position = c("RIGHT", "BOTTOM"),
+              main.title = "Indice G",
+              main.title.size = .9) +
+    tm_graticules(lwd = 0)
+  tmap_save(indiceG, paste0("./plots/", name, "_indiceG.png"))
+  
+  
+  # Calcular SUHI ----
+  # Extraer solo buffer
+  # plot(ciudad)
+  # plot(b, col = "black")
+  # buf <- b - ciudad
+  # plot(buf, col = "black")
+  
+  # Nivel ciudad, todas las clases
+  # xal_mean <- cellStats(mask(lst_xal, ciudad), 'mean')
+  # buf_mean <- cellStats(mask(lst_xal, buf), 'mean')
+  # suhi <- # Formula SUHI
+  #   suhi
+  
+  # Solo pixeles impermeables
+  # imp_mean <- cellStats(mask(lst_posadas, cover[cover$ID == 5,]), 'mean')
+  # suhi <- # Formula SUHI
+  #   suhi
+  
+  # Cada pixel de la ciudad vs referencia
+  # suhi_pix <- mask(lst_xal, ciudad) - buf_mean
+  # plot(suhi_pix, col=brewer.pal(9, 'YlOrRd'))
+  
+  # Controlando elevacion
+  # Identificar rango de elevacion en la ciudad
+  # dem <- raster("./raster/dem_30m.tif")
+  # dem_ciudad <- trim(mask(dem, ciudad))
+  # plot(dem_ciudad)
+  # elev_ciudad <- range(dem_ciudad[], na.rm=TRUE)
+  # elev_ciudad
+  
+  # Rango de valores del DEM en el buffer
+  # range(mask(dem, buf)[], na.rm=TRUE)
+  
+  # Crear capa de DEM del buffer
+  # dem_buf <- mask(dem, buf)
+  # plot(dem_buf)
+  
+  # eliminar pixeles de acuerdo a criterio de exclusion
+  # dem_buf[dem_buf < min(elev_ciudad) - 50 | dem_buf > max(elev_ciudad) + 50] <- NA
+  # plot(dem_buf)
+  
+  # Calcular SUHI controlando elevacion
+  # buf_mean <- cellStats(mask(lst_xal, dem_buf), 'mean')
+  # suhi_elev <- # Formula SUHI
+  #   suhi_elev
+  
+  # Plot NDVI vs LST
+  st_indices <- stack(lst, r_sdos[[ndviLayer]], r_sdos[[ndbiLayer]])
+  names(st_indices) <- c("LST", "NDVI", "NDBI")
+  # st_indices <- mask(st_indices, ciudad)
+  
+  
+  table <- as.data.frame(na.omit(values(st_indices)))
+  table <- as_tibble(table)
+  
+  
+  # ggplot(table, aes(x = NDVI, y = LST)) + 
+  #   geom_point(color='grey') + 
+  #   geom_smooth(method = "lm", color = 'red') + theme_minimal() +
+  #   labs(title = "Grafico dispersión NDVI~LST")
+  # ggsave(paste0('./plots/', name, 'NDVI_LST.png')
+  
+  ggplot(table, aes(x = NDVI, y = LST)) + 
+    geom_point(color='grey') + 
+    geom_smooth(color = 'red') + theme_minimal() +
+    labs(title = "Grafico dispersión NDVI~LST")
+  ggsave(paste0('./plots/', name, '_NDVI_LST_gam.png'))
+  
+  
+  ggplot(table, aes(x = NDBI, y = LST)) + 
+    geom_point(color='lightgrey', alpha = .5) + 
+    geom_smooth(color = 'red') + theme_minimal() +
+    labs(title = "Grafico dispersión NDBI~LST")
+  ggsave(paste0('./plots/', name, '_NDBI_LST.png'))
+  
+  
+  # Estructura de los valores
+  # ggplot(table, aes(NDVI)) + geom_histogram() + theme_minimal() +
+  #   labs(title = "Histograma de NDVI")
+  # ggplot(table, aes(NDBI)) + geom_histogram() + theme_minimal() +
+  #   labs(title = "Histograma de NDBI")
+
+  
+  # Correlacion
+  correlacion <- layerStats(st_indices, 'pearson', na.rm=T)
+  cor <- as_tibble(correlacion$'pearson correlation coefficient')
+  write_csv(cor, paste0('./outputs/', name, '_correlacion.csv'))
+  
+  cormean <- as.data.frame(correlacion$mean)
+  cormean$index <- rownames(cormean)
+  names(cormean)[1] <- 'mean'
+  write_csv(cormean, paste0('./outputs/', name, '_correlacion_mean.csv'))
 }

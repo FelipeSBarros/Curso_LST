@@ -286,7 +286,7 @@ automate_suhi <- function(
   urbanID = 5,
   shapePath = './shp/muni_posadas.shp',
   landcoverPath = './raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif',
-  lstPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lst.tif"
+  
   ){
   library(sf)
   library(raster)
@@ -295,6 +295,7 @@ automate_suhi <- function(
   library(ggplot2)
   library(usdm)
   library(tibble)
+  library(readr)
   
   # defining project name
   name <- sub('.tif','',
@@ -306,7 +307,7 @@ automate_suhi <- function(
   # loading data ----
   r_sdos <- stack(rasterPath)
   posadas <- read_sf(shapePath)
-  lst <- raster(lstPath)
+
   # leer land cover
   cover_r <- raster(landcoverPath)
   
@@ -330,31 +331,31 @@ automate_suhi <- function(
   tmap_save(both, paste0("./plots/", name, "_em_pveg.png"))
   
   # Calcular LST ----
-  lst_posadas <- landsat_lst(r_sdos[[btLayer]], em[[1]], 'L8', conv = FALSE)
+  lst <- landsat_lst(r_sdos[[btLayer]], em[[1]], 'L8', conv = FALSE)
   
   # saving raster result
-  writeRaster(lst_posadas, paste0("./raster/", namePath, "/", name, "_lst.tif"), overwrite = TRUE)
+  writeRaster(lst, paste0("./raster/", namePath, "/", name, "_lst.tif"), overwrite = TRUE)
   
   # saving map
-  lst <- tm_shape(lst_posadas) + 
+  lstMap <- tm_shape(lst) + 
     tm_raster(style = 'fisher', title = 'Temperatura °C', palette = 'YlOrRd') +
     tm_layout(legend.outside = FALSE, 
               legend.position = c("RIGHT", "BOTTOM"),
               main.title = "Land Surface Temperature") +
     tm_graticules(lwd = 0)
-  tmap_save(lst, paste0("./plots/", name, "_LST.png"))
+  tmap_save(lstMap, paste0("./plots/", name, "_LST.png"))
   
   #Calcular estadisticas zonales ----
   
   # Urban Heat Island UHI ----
   # Calcular estadisticas basicas
-  st <- uhi_stats(lst_posadas, cover_r, id=urbanID) #calcula las diferencias con el id dos, area urbana
+  st <- uhi_stats(lst, cover_r, id=urbanID) #calcula las diferencias con el id dos, area urbana
   st$clase <- c('Foresta', 'Pasto', 'Suelo exposto', 'Agua', 'Area urbana')
   write.csv(st, paste0("./outputs/", name, "_uhi_stats.csv"), row.names = FALSE)
   
   # Calcular hot island area HIA ----
-  lst_city <- lst_posadas * (cover_r == 5) # duvida: HIa so para ciudad
-  plot(lst_city)
+  lst_city <- lst * (cover_r == 5) # duvida: HIa so para ciudad
+  #plot(lst_city)
   # HIA
   hia_cal <- hia(lst_city)
   #write_csv(as_tibble(hia_cal[2:length(hia_cal)]), "./outputs/hia.csv")
@@ -384,6 +385,7 @@ automate_suhi <- function(
   print("running LISA")
   g <- lisa(lst, d1 = 0, d2 = 70, statistic = "G*")
   print("LISA done")
+  Sys.sleep(10)
   # tm_shape(g) +
   #   tm_raster(style = "fisher")
   
@@ -392,7 +394,9 @@ automate_suhi <- function(
   pv <- as.data.frame(pv)
   FDR <- round(p.adjust(pv[, 1], "fdr"), 7)
   g <- round(g, 2)
+  Sys.sleep(10)
   writeRaster(g, paste0("./raster/", namePath, "/", name, "_lisa.tif"))
+  Sys.sleep(10)
   # gdal_polygonize("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.tif", "./shp//LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.shp")
   v.g <- clamp(g)
   v.g <- rasterToPolygons(v.g, na.rm = TRUE)
@@ -402,6 +406,7 @@ automate_suhi <- function(
   v.g$cluster <- ifelse(v.g$Z.scores > 0 & v.g$FDR < 0.05, "Hot spot", ifelse(v.g$Z.scores < 0 & v.g$FDR < 0.05, "Cold spot", "No sig"))
   
   write_sf(st_as_sf(v.g), paste0("./shp/", name, "_getis_analysis.shp"), overwrite = TRUE)
+  Sys.sleep(10)
   
   print("Mapa Area correlação")
   AreasCorrelacion <- tm_shape(v.g) +

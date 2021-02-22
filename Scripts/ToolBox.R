@@ -226,8 +226,8 @@ landcover <- function(
     geom_ribbon(aes(ymin=mean-sd, ymax=mean+sd), alpha=0.2) + 
     geom_line(
       aes(colour = as.factor(Class))) +
-    labs(x = "Number of Clusters", 
-         y = "Within groups sum of squares") + 
+    labs(x = "Satelitte image bands and spectral indices", 
+         y = "Reflectance") + 
     theme(text = element_text(size = 17)) + guides(colour=guide_legend(title=NULL))
   if (!file.exists("./plots/")) dir.create("./plots/")
   ggsave(paste0("./plots/", name, "_SpectralSign.png"), dpi = 300)
@@ -307,6 +307,8 @@ automate_suhi <- function(
   # loading data ----
   r_sdos <- stack(rasterPath)
   posadas <- read_sf(shapePath)
+  st <- raster::stretch(r_sdos)
+  rgb <- r_sdos[[1:8]] %>% stretch()
 
   # leer land cover
   cover_r <- raster(landcoverPath)
@@ -330,7 +332,7 @@ automate_suhi <- function(
   both <- tmap_arrange(emissivity, pveg)
   tmap_save(both, paste0("./plots/", name, "_em_pveg.png"))
   
-  # Calcular LST ----
+  # Calcular <- ----
   lst <- landsat_lst(r_sdos[[btLayer]], em[[1]], 'L8', conv = FALSE)
   
   # saving raster result
@@ -354,30 +356,33 @@ automate_suhi <- function(
   write.csv(st, paste0("./outputs/", name, "_uhi_stats.csv"), row.names = FALSE)
   
   # Calcular hot island area HIA ----
-  lst_city <- lst * (cover_r == 5) # duvida: HIa so para ciudad
+  if (!is.null(urbanID)){
+    print("HIA for Urban ID")
+    lst_city <- lst * (cover_r == urbanID) # duvida: HIa so para ciudad
+    lst_city[lst_city==0] <- NA
+  } else {
+    print("HIA for the entire layer")
+    lst_city <- lst
+  }
+  
   #plot(lst_city)
   # HIA
   hia_cal <- hia(lst_city)
-  #write_csv(as_tibble(hia_cal[2:length(hia_cal)]), "./outputs/hia.csv")
+  write_rds(hia_cal, paste0("./outputs/", name, "_hia"))
   
   # saving map
-  hia <- tm_shape(hia_cal[[1]]) + 
+  hia <- tm_shape(rgb) +
+    tm_rgb(4,3, 2, alpha = 0.5) +
+    tm_shape(hia_cal[[1]]) + 
     tm_raster(style = 'fisher', title = 'Temperatura °C', palette = 'YlOrRd') +
     tm_layout(legend.outside = FALSE, 
               legend.position = c("RIGHT", "BOTTOM"),
               main.title = "Islas de calor urbano - Posadas, Misiones",
               main.title.size = .9) +
     tm_graticules(lwd = 0)
-  # tmap_save(hia, './outputs/HIA_posadas_AU.png')
+  tmap_save(hia, paste0('./plots/', name, '_hiaMap.png'))
+  writeRaster(hia_cal[[1]], paste0('./raster/', name, '_hia.tif'), overwrite = TRUE)
   
-  st <- raster::stretch(r_sdos)
-  rgb <- r_sdos[[1:8]] %>% stretch()
-  rgb <- tm_shape(rgb) +
-    tm_rgb(r = 4, g=3, b=1) +
-    tm_graticules(lwd = 0) +
-    tm_compass()
-  composition <- tmap_arrange(rgb, hia)
-  tmap_save(composition, paste0('./plots/', name, '_hiaMap.png'))
   
   # Correlacion ----
 
@@ -398,7 +403,7 @@ automate_suhi <- function(
   writeRaster(g, paste0("./raster/", namePath, "/", name, "_lisa.tif"))
   Sys.sleep(10)
   # gdal_polygonize("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.tif", "./shp//LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.shp")
-  v.g <- clamp(g)
+  #v.g <- clamp(g)
   v.g <- rasterToPolygons(v.g, na.rm = TRUE)
   v.g <- st_as_sf(v.g)
   names(v.g)[1] <- "Z.scores"
@@ -520,4 +525,49 @@ automate_suhi <- function(
   cormean$index <- rownames(cormean)
   names(cormean)[1] <- 'mean'
   write_csv(cormean, paste0('./outputs/', name, '_correlacion_mean.csv'))
+}
+
+landcover2vec <- function(landcoverPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif"){
+  library(raster)
+  library(sf)
+  
+  # Getting project name
+  name <- sub('.tif','',
+              tail(stringr::str_split(
+                landcoverPath, '/')[[1]], 1))
+  landcover.r <- raster(landcoverPath)
+  names(landcover.r) <- 'classes'
+  landcover.v <- rasterToPolygons(landcover.r)
+  landcover.v <- st_as_sf(landcover.v)
+  landcover.v <- landcover.v %>% 
+    dplyr::group_by(classes) %>%
+    dplyr::summarize()
+  landcover.v <- st_cast(landcover.v,"POLYGON")
+  
+  write_sf(landcover.v, paste0("./shp/", name, ".shp"))
+}
+
+lst_explore <- function(lstPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lst.tif", rasterPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip.tif",
+               landcoverPath = './raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif',
+               specIndexes = c(6, 7, 8, 9, 10)){
+  # HIA
+  r <- raster(lstPath)
+  names(r) <- "LST"
+  # landcover
+  landcover <- raster(landcoverPath)
+  #landcover <- landcover * (landcover == 5)
+  #landcover[landcover==0] <- NA
+  names(landcover) <- "landcover"
+  
+  # spectral indexes
+  stackRaster <- stack(rasterPath)[[specIndexes]]
+  r <- projectRaster(r, stackRaster[[1]])
+  #stackRaster <- stackRaster * (landcover == 5)
+  names(stackRaster) <- c("NDVI", "EVI","SAVI", "NDWI", "NDBI")
+  # compareRaster(r, landcover, extent = T, crs = T, res = T, orig = T)
+  
+  r <- addLayer(r, stackRaster, landcover)
+  r.df <- na.omit(as.data.frame(r))
+  #head(r.df)
+  write.csv(r.df, "./outputs/Hia_specIndexes.csv", row.names = FALSE)
 }

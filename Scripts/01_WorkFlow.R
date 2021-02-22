@@ -21,3 +21,5 @@ automate_suhi(rasterPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC
               shapePath = './shp/muni_posadas.shp',
               landcoverPath = './raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif',
               lstPath = "./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lst.tif")
+
+lst_explore()

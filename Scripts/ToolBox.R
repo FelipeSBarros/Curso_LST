@@ -97,7 +97,7 @@ pre_processing <- function(
     # croping image ----
     r_sdos_clip <- crop(r_top, shape_sf)
     r_sdos_clip <- mask(r_sdos_clip, shape_sf)
-    #plotRGB(r_sdos, 5,4,3, stretch = 'hist')
+    #plotRGB(r_sdos_clip, 5,4,3, stretch = 'hist')
     writeRaster(r_sdos_clip, paste0(rasterPath, "/", tail(stringr::str_split(rasterPath, '/')[[1]], 1), "_sdos_clip.tif"), overwrite = TRUE)
   }
   
@@ -256,7 +256,12 @@ landcover <- function(
   landCover[non_na_px] <- mydata$Class
   
   map <- tm_shape(landCover) +
-    tm_raster(palette = 'cat', style = 'cat', legend.show = TRUE, title = "Landcover class") +
+    tm_raster(palette = 'cat', style = 'cat', legend.show = TRUE, title = "Landcover class",
+              labels = c("Foresta", 
+                         "Suelo Expuesto",
+                         "Pastizales",
+                         "Agua",
+                         "Área Urbana")) +
     tm_layout(legend.outside = FALSE, legend.position = c("RIGHT", "BOTTOM")) +
     tm_graticules(lwd = 0) +
     tm_compass(position = c("RIGHT", "TOP"))
@@ -285,9 +290,7 @@ automate_suhi <- function(
   btLayer = 11, # band temperature layer
   urbanID = 5,
   shapePath = './shp/muni_posadas.shp',
-  landcoverPath = './raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif',
-  
-  ){
+  landcoverPath = './raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif'){
   library(sf)
   library(raster)
   library(LSTtools)
@@ -352,7 +355,7 @@ automate_suhi <- function(
   # Urban Heat Island UHI ----
   # Calcular estadisticas basicas
   st <- uhi_stats(lst, cover_r, id=urbanID) #calcula las diferencias con el id dos, area urbana
-  st$clase <- c('Foresta', 'Pasto', 'Suelo exposto', 'Agua', 'Area urbana')
+  st$clase <- c('Floresta', 'Suelo expuesto', 'Pastizales', 'Agua', 'Area Urbana')
   write.csv(st, paste0("./outputs/", name, "_uhi_stats.csv"), row.names = FALSE)
   
   # Calcular hot island area HIA ----
@@ -400,11 +403,11 @@ automate_suhi <- function(
   FDR <- round(p.adjust(pv[, 1], "fdr"), 7)
   g <- round(g, 2)
   Sys.sleep(10)
-  writeRaster(g, paste0("./raster/", namePath, "/", name, "_lisa.tif"))
+  writeRaster(g, paste0("./raster/", namePath, "/", name, "_lisa.tif"), overwrite = TRUE)
   Sys.sleep(10)
   # gdal_polygonize("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.tif", "./shp//LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.shp")
   #v.g <- clamp(g)
-  v.g <- rasterToPolygons(v.g, na.rm = TRUE)
+  v.g <- rasterToPolygons(g, na.rm = TRUE)
   v.g <- st_as_sf(v.g)
   names(v.g)[1] <- "Z.scores"
   v.g$FDR <- na.omit(FDR)
@@ -480,7 +483,7 @@ automate_suhi <- function(
   #   suhi_elev
   
   # Plot NDVI vs LST
-  st_indices <- stack(lst, r_sdos[[ndviLayer]], r_sdos[[ndbiLayer]])
+    st_indices <- stack(lst, r_sdos[[ndviLayer]], r_sdos[[ndbiLayer]])
   names(st_indices) <- c("LST", "NDVI", "NDBI")
   # st_indices <- mask(st_indices, ciudad)
   
@@ -495,18 +498,18 @@ automate_suhi <- function(
   #   labs(title = "Grafico dispersión NDVI~LST")
   # ggsave(paste0('./plots/', name, 'NDVI_LST.png')
   
-  ggplot(table, aes(x = NDVI, y = LST)) + 
-    geom_point(color='grey') + 
-    geom_smooth(color = 'red') + theme_minimal() +
-    labs(title = "Grafico dispersión NDVI~LST")
-  ggsave(paste0('./plots/', name, '_NDVI_LST_gam.png'))
+  # ggplot(table, aes(x = NDVI, y = LST)) + 
+  #   geom_point(color='grey') + 
+  #   geom_smooth(color = 'red') + theme_minimal() +
+  #   labs(title = "Grafico dispersión NDVI~LST")
+  #ggsave(paste0('./plots/', name, '_NDVI_LST_gam.png'))
   
   
-  ggplot(table, aes(x = NDBI, y = LST)) + 
-    geom_point(color='lightgrey', alpha = .5) + 
-    geom_smooth(color = 'red') + theme_minimal() +
-    labs(title = "Grafico dispersión NDBI~LST")
-  ggsave(paste0('./plots/', name, '_NDBI_LST.png'))
+  # ggplot(table, aes(x = NDBI, y = LST)) + 
+  #   geom_point(color='lightgrey', alpha = .5) + 
+  #   geom_smooth(color = 'red') + theme_minimal() +
+  #   labs(title = "Grafico dispersión NDBI~LST")
+  # ggsave(paste0('./plots/', name, '_NDBI_LST.png'))
   
   
   # Estructura de los valores

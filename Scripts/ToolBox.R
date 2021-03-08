@@ -262,8 +262,9 @@ landcover <- function(
                          "Pastizales",
                          "Agua",
                          "Área Urbana")) +
-    tm_layout(legend.outside = FALSE, legend.position = c("RIGHT", "BOTTOM")) +
-    tm_graticules(lwd = 0) +
+    tm_layout(legend.outside = FALSE, 
+              legend.position = c("RIGHT", "BOTTOM")) +
+    tm_graticules(lwd = 0) #+
     tm_compass(position = c("RIGHT", "TOP"))
   
   tmap_save(map, paste0("./plots/", name, "_landcover.png"))
@@ -281,6 +282,7 @@ landcover <- function(
   namePath <- paste(strsplited[[1]][1:(length(strsplited[[1]])-2)], collapse = '_')
   
   writeRaster(landCover, paste0("./raster/", namePath, "/", name, "_landCover.tif"), overwrite = TRUE)
+  # landCover <- raster('./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_landCover.tif')
 }
 
 automate_suhi <- function(
@@ -340,6 +342,7 @@ automate_suhi <- function(
   
   # saving raster result
   writeRaster(lst, paste0("./raster/", namePath, "/", name, "_lst.tif"), overwrite = TRUE)
+  # lst <- raster("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lst.tif")
   
   # saving map
   lstMap <- tm_shape(lst) + 
@@ -370,13 +373,14 @@ automate_suhi <- function(
   
   #plot(lst_city)
   # HIA
+  #hia_cal <- raster("./raster/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_hia.tif")
   hia_cal <- hia(lst_city)
   write_rds(hia_cal, paste0("./outputs/", name, "_hia"))
   
   # saving map
   hia <- tm_shape(rgb) +
     tm_rgb(4,3, 2, alpha = 0.5) +
-    tm_shape(hia_cal[[1]]) + 
+    tm_shape(hia_cal) + 
     tm_raster(style = 'fisher', title = 'Temperatura °C', palette = 'YlOrRd') +
     tm_layout(legend.outside = FALSE, 
               legend.position = c("RIGHT", "BOTTOM"),
@@ -385,7 +389,7 @@ automate_suhi <- function(
     tm_graticules(lwd = 0)
   tmap_save(hia, paste0('./plots/', name, '_hiaMap.png'))
   writeRaster(hia_cal[[1]], paste0('./raster/', name, '_hia.tif'), overwrite = TRUE)
-  
+  # hia_cal <- raster("./raster/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_hia.tif")
   
   # Correlacion ----
 
@@ -404,6 +408,7 @@ automate_suhi <- function(
   g <- round(g, 2)
   Sys.sleep(10)
   writeRaster(g, paste0("./raster/", namePath, "/", name, "_lisa.tif"), overwrite = TRUE)
+  # g <- raster("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.tif")
   Sys.sleep(10)
   # gdal_polygonize("./raster/LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.tif", "./shp//LC08_L1TP_224079_20201212_20201218_01_T1/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_lisa.shp")
   #v.g <- clamp(g)
@@ -414,6 +419,7 @@ automate_suhi <- function(
   v.g$cluster <- ifelse(v.g$Z.scores > 0 & v.g$FDR < 0.05, "Hot spot", ifelse(v.g$Z.scores < 0 & v.g$FDR < 0.05, "Cold spot", "No sig"))
   
   write_sf(st_as_sf(v.g), paste0("./shp/", name, "_getis_analysis.shp"), overwrite = TRUE)
+  # v.g <- read_sf("./shp/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_getis_analysis.shp")
   Sys.sleep(10)
   
   print("Mapa Area correlação")
@@ -421,7 +427,7 @@ automate_suhi <- function(
     tm_fill("cluster") +
     tm_layout(legend.outside = FALSE, 
             legend.position = c("RIGHT", "BOTTOM"),
-            main.title = "Islas de calor/frío - Posadas, Misiones",
+            main.title = "D",
             main.title.size = .9) +
     tm_graticules(lwd = 0)
   tmap_save(AreasCorrelacion, paste0("./plots/", name, "_AreasCorrelacionG.png"))

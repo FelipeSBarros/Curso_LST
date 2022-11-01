@@ -1,6 +1,11 @@
 ---
 title: "Análisis de islas de calor urbano en Posadas, Misiones - Argentina"
-author: "Felipe Sodré M. Barros"
+author: 
+- Felipe Sodré M. Barros ^[Instituto Misionero de Biodiversidad, Departamento de Geografía - Instituto Antonio Ruiz de Montoya]
+- Erik Ruuth ^[Director Gral. Científico del Instituto Misionero de Biodiversidad]
+- Emanuel Grassi ^[Director Gral. Ejecutivo del Instituto Misionero de Biodiversidad]
+- Alejandro Roberto Vargas ^[Docente invevstigador Facultad de Ciencias Forestales UNaM]
+- Juan Solari ^[Director Gral. de Sistemas de Información Geográfica del Instituto Misionero de Biodiversidad]
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 bibliography: bibliographyLST.bib
 output:
@@ -34,17 +39,17 @@ library(magrittr)
 
 **Qué preguntas quiero responder?**
 
-Se desarrollaron diferentes indicadores para analizar las islas de calor en dependiendo de sus coberturas ofreciendo los resultados como un servicio ambiental, sin hace una validación científica estricta. Un  servicio ambiental, según @DeGroot, se define como “flujo de bienes y servicios útiles para la sociedad humana”.
+Se desarrollaron diferentes indicadores para analizar las islas de calor dependiendo de sus coberturas ofreciendo los resultados como un servicio ambiental, en un ejercício de clasificación visual. Un  servicio ambiental, según @DeGroot, se define como “flujo de bienes y servicios útiles para la sociedad humana”.
 
 ## Área de estudio
 
-El presente estudio analizó el municipio de Posadas, provincia de Misiones, Argentina que se ubica a las orillas del río Paraná en el límite Argentina/Paraguay al sur de la provincia (figura \ref{mapaLocalizacao}).
+Enel presente estudio se analizó el municipio de Posadas, provincia de Misiones, Argentina que se ubica a las orillas del río Paraná en el límite Argentina/Paraguay al sur de la provincia (figura \ref{mapaLocalizacao}).
 
 ```{r, echo = FALSE, out.width = "150px", fig.cap="Mapa de localización de Posadas, Misiones - Argentina. \\label{mapaLocalizacao}", fig.align='center'}
 knitr::include_graphics("./plots/mapaLocalizacaoMod.png")
 ```
 
-La mayor parte de la población de Posadas se encuentra en perímetro del centro a pesar de las cercanías del río Paraná (figura \ref{mapaLocalizacao}, punto 1). La reciente de expansión urbana es promovida por el estado provincial hacia el oeste con la construcción unidades habitacionales edificados (figura \ref{mapaLocalizacao}, punto 2).
+La mayor parte de la población de Posadas se encuentra en el perímetro del centro (figura \ref{mapaLocalizacao}, punto 1) siendo el centro limitado por otra parte por el río Paraná. La reciente de expansión urbana es promovida por el estado provincial hacia el oeste con la construcción de unidades habitacionales edificados (figura \ref{mapaLocalizacao}, punto 2).
 
 ## Materiales y Métodos
 
@@ -54,17 +59,17 @@ m <- list.files(path ="./raster/LC08_L1TP_224079_20201212_20201218_01_T1/", patt
 m <- readMeta(m)
 ```
 
-Para el presente estudio se utilizó el sensor `r m$SENSOR` del  satélite `r m$SATELLITE[1]` para la fecha `r m$ACQUISITION_DATE[1]` y cena path/row `r m$PATH_ROW[1]`/`r m$PATH_ROW[2]`, haciendo uso del lenguaje de programación **R** [@rstats] y de los paquetes *raster* [@raster], *rstoolbox* [@rstoolbox], *lstoolbox* [@lstoolbox]. Esta misma imagen fue utilizada para el análisis de cobertura del suelo así como para el análisis de islas de calor urbano.
+Para el presente estudio se utilizó el sensor `r m$SENSOR` del  satélite `r m$SATELLITE[1]` para la fecha `r m$ACQUISITION_DATE[1]` y escena path/row `r m$PATH_ROW[1]`/`r m$PATH_ROW[2]`, haciendo uso del lenguaje de programación **R** [@rstats] y de los paquetes *raster* [@raster], *rstoolbox* [@rstoolbox], *lstoolbox* [@lstoolbox]. Esta misma imagen fue utilizada para el análisis de cobertura del suelo así como para el análisis de islas de calor urbano.
 
-Para la corrección atmosférica se utilizaron los métodos de estimación de objetos oscuros y el algoritmo de *Simple dark object subtraction* - sdos [@rstoolbox]. Para la corrección topográfica, se descargó de la página del [Instituto Geográfico Nacional de Argentina (IGN)](https://www.ign.gob.ar/category/tem%C3%A1tica/geodesia/mde-ar) las cenas de Modelo Digital de Elevación (DEM, en inglés) que cubre todo el municipio de Posadas (cenas `2757-29` y `2757-30`).
+Para la corrección atmosférica se utilizaron los métodos de estimación de objetos oscuros y el algoritmo de *Simple dark object subtraction* - sdos [@rstoolbox]. Para la corrección topográfica, se descargó de la página del [Instituto Geográfico Nacional de Argentina (IGN)](https://www.ign.gob.ar/category/tem%C3%A1tica/geodesia/mde-ar) las escenas de Modelo Digital de Elevación (DEM, en inglés) que cubre todo el municipio de Posadas (escenas `2757-29` y `2757-30`).
 
-Para apoyar a la clasificación de la cobertura del suelo, algunos índices espectrales fueron creados, como el NDVI (*Normalized Difference Vegetation Index*), el EVI (*Enhanced Vegetation Index*) y el SAVI (*Soil Adjusted Vegetation Index*) para facilitar la identificación de áreas forestales o con actividad de fotosíntesis. Considerando la presencia de cuerpos de agua se utilizó el índice NDWI (*Normalized Difference Water Index*). Ya el índice NDBI (*Normalized Difference Build Index*) fue utilizado para facilitar la identificación de áreas construidas.
+Para apoyar a la clasificación de la cobertura del suelo, algunos índices espectrales fueron creados, como el NDVI (*Normalized Difference Vegetation Index*), el EVI (*Enhanced Vegetation Index*) y el SAVI (*Soil Adjusted Vegetation Index*) para facilitar la identificación de áreas de vegetación o con actividad de fotosíntesis. Considerando la presencia de cuerpo de agua se utilizó el índice NDWI (*Normalized Difference Water Index*). Ya el índice NDBI (*Normalized Difference Build Index*) fue utilizado para facilitar la identificación de áreas construidas.
 
-Para la clasificación de cobertura del suelo, de utilizó el análisis [*Within-Cluster-Sum of Squared Errors (WSS)*](https://medium.com/analytics-vidhya/how-to-determine-the-optimal-k-for-k-means-708505d204eb). Con este análisis se pudo identificar que el área sería mejor mapeada con cinco clases por ser la primera cantidad de clases a reducir el *WSS error* de manera significativa. En la figura \ref{quatromapas} (mapa A) se presenta el municipio de Posadas con el resultado de clasificación no supervisada de cobertura del suelo. Luego de la clasificación, se hizo la intepretación visual de las clases creadas: 1 - Florestas; 2 - Suelo Expuesto; 3 - Pastizales; 4 - Agua; 5 - Área Urbana;
+Para la clasificación de cobertura del suelo, se utilizó el análisis [*Within-Cluster-Sum of Squared Errors (WSS)*](https://medium.com/analytics-vidhya/how-to-determine-the-optimal-k-for-k-means-708505d204eb). Con este análisis se pudo identificar que el área sería mejor mapeada con cinco clases por ser la primera cantidad de clases a reducir el *WSS error* de manera significativa. En la figura \ref{quatromapas} (mapa A) se presenta el municipio de Posadas con el resultado de clasificación no supervisada de cobertura del suelo. Luego de la clasificación, se hizo la interpretación visual de las clases creadas: 1 - Vegetación; 2 - Suelo Desnudo; 3 - Pastizal; 4 - Cuerpo de Agua; 5 - Área Urbana;
 
-Para se identificar las Islas de Calor Urbano (*Spatial Urban Heat Island - SUHI*), se calculó el la temperatura superficial de la tierra (*Land Surface Temperature (LST)*) (figura \ref{quatromapas}, mapa B) [@lstoolbox] y, en base a él, se pudo calcular las estadísticas de Islas de Calor Urbano (*Hurban Heat Island (UHI)*), en la cual se obtiene a cada clase de cobertura del suelo los valores de temperatura mínima, máxima, el promedio, la magnitud (su valor máximo menos el valor mínimo de temperatura), así como la diferencia de la temperatura promedio de la clase en relación a la clase de Área Urbana.
+Para identificar las Islas de Calor Urbano (*Spatial Urban Heat Island - SUHI*), se calculó la temperatura superficial de la tierra (*Land Surface Temperature (LST)*) (figura \ref{quatromapas}, mapa B) [@lstoolbox] y, en base a eso, se pudo calcular las estadísticas de Islas de Calor Urbano (*Urban Heat Island (UHI)*), en la cual se obtiene a cada clase de cobertura del suelo los valores de temperatura mínima, máxima, el promedio, la magnitud (su valor máximo menos el valor mínimo de temperatura), así como la diferencia de la temperatura promedio de la clase en relación a la clase de Área Urbana.
 
-En seguida se calcuó el Área de Isla de Calor (*Heat Island Area (HIA)*) [@lstoolbox] y el indicador de correlación espacial  (*Local Indicators of spatial Association (LISA)*) considerando el indicador propuesto por *Getis-Ord Gi\** . El indicador de correlación espacial nos permitió identificar las áreas de agrupamiento sea entre altos valores de temperatura, ya sea de bajos valores de temperatura, así como aquellas con resultados no significativos (en base al valor *z.score* y la corrección *False Discovery Rate (FDR)*, la cual reduce el valor de corte del p-valor. Se usó el valor de 0.05 como el valor para rechazar la hipótesis nula).
+Se calculó el Área de Isla de Calor (*Heat Island Area (HIA)*) [@lstoolbox] y el indicador de correlación espacial  (*Local Indicators of spatial Association (LISA)*) considerando el indicador propuesto por *Getis-Ord Gi\** . El indicador de correlación espacial nos permitió identificar las áreas de agrupamiento sea entre altos valores de temperatura, ya sea de bajos valores de temperatura, así como aquellas con resultados no significativos (en base al valor *z.score* y la corrección *False Discovery Rate (FDR)*, la cual reduce el valor de corte del p-valor. Se usó el valor de 0.05 como el valor para rechazar la hipótesis nula).
 
 ```{r, echo = FALSE, out.width = "400px", fig.cap="Mapas de Land Surface Temperature (LST) para la ciudad de Posadas \\label{quatromapas}", fig.align='center'}
 knitr::include_graphics("./plots/quatromapas.png")
@@ -72,14 +77,14 @@ knitr::include_graphics("./plots/quatromapas.png")
 
 ## Resultados y conclusiones
 
-Al partir del cálculo de *LST* (figura \ref{quatromapas}, mapa B) se pudo percibir que las áreas de mayor temperatura no serían solamente las areas clasificadas como urbanas, pero también áreas clasificadas como Pastizales y Suelo Expuesto.
+Al partir del cálculo de *LST* (figura \ref{quatromapas}, mapa B) se pudo percibir que las áreas de mayor temperatura no serían solamente las áreas clasificadas como urbanas, sino también áreas clasificadas como Pastizal y Suelo Desnudo.
 
 
 ```{r, echo=FALSE}
 tbl <- read.csv("./outputs/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_uhi_stats.csv")
 ```
 
-Analizando las estadísticas, se pudo identificar que las áreas de `r tbl[which(tbl$min == min(tbl$min)), 'clase']` presentó valor mínimo de temperatura, con `r tbl[which(tbl$min == min(tbl$min)), 'min']` grados (tabla \ref{tab:MyLabel}) y la clase `r tbl[which(tbl$max == max(tbl$max)), 'clase']` presentó la temperatura máxima con `r tbl[which(tbl$max == max(tbl$max)), 'max']` grados. Puede ser que por el hecho del suelo de Misiones, y a su vez, Posadas, ser de tipo "rojo profundo", con prevalencia de *Ultisoles*, sea responsable por esa características.
+Analizando las estadísticas, se pudo identificar que las áreas de `r tbl[which(tbl$min == min(tbl$min)), 'clase']` presentó valor mínimo de temperatura, con `r tbl[which(tbl$min == min(tbl$min)), 'min']` grados (tabla \ref{tab:MyLabel}) y la clase `r tbl[which(tbl$max == max(tbl$max)), 'clase']` presentó la temperatura máxima con `r tbl[which(tbl$max == max(tbl$max)), 'max']` grados. Puede ser que por el hecho del suelo de Misiones, y a su vez, Posadas, ser de tipo "rojo profundo", con prevalencia de *Ultisoles*, es responsable por esa características.
 
 La amplitud de variación (en inglés *magnitud*, tabla \ref{tab:MyLabel}) de cada clase (valor máximo menos el valor mínimo de temperatura) es más grande en `r tbl[which(tbl$magnitud == max(tbl[-1, "magnitud"])), 'clase']`  totalizando `r tbl[which(tbl$magnitud == max(tbl[-1, "magnitud"])), 'magnitud']` grados. `r tbl[sort(tbl$magnitud, decreasing = T, index.return = T)$ix[2], 'clase']` tiene el segundo amyor valor de variación de temperatura con una amplitud de `r sort(tbl$magnitud, decreasing = T)[2]` grados. 
 
@@ -93,14 +98,14 @@ hia <- read_rds("./outputs/LC08_L1TP_224079_20201212_20201218_01_T1_sdos_clip_hi
 
 El índice *HIA* fue calculado solamente en las áreas urbanas y retornó como limitar de temperatura `r hia[[4]]` grados, con valor promedio de `r hia[[2]]` grados y totalizando `r hia[[5]]` hectáreas de islas de calor urbana, presentadas en la figura \ref{quatromapas} (mapa C).
 
-El mapa de índices HIA (figura \ref{quatromapas}, mapa C) muestra algunos puntos en la región oeste del municipio de la ciudad con altos valores (figura \ref{quatromapas}, punto 1). Lo inesperado fueron los índices bajos en el centro urbano (figura \ref{mapaLocalizacao}, punto 1), que se presumía ser equivante en términos de temperatura como las nuevas áreas de expansión urbana. El hecho que el centro urbano esté ubicado cerca el río Paraná puede influenciar la temperatura, manteniéndola más baja si se compara con las nuevas áreas de expansión urbana (figura \ref{mapaLocalizacao}, punto 2). Otros puntos que llaman la atención son: el hipermercado libertad junto a la terminal de ómnibus y parte de la Avenida Quaranta (Ruta 12) (figura \ref{quatromapas}, mapa C - punto 2), Avenida Uruguay (figura \ref{quatromapas}, mapa C, punto 3) y la rotonda de la Avenida Costanera y Mitre (figura \ref{quatromapas}, mapa C, punto 4).
+El mapa de índices HIA (figura \ref{quatromapas}, mapa C) muestra algunos puntos en la región oeste del municipio de la ciudad con altos valores (figura \ref{quatromapas}, punto 1). Lo inesperado fueron los índices bajos en el centro urbano (figura \ref{mapaLocalizacao}, punto 1), que se presumía ser equivalentes en términos de temperatura como las nuevas áreas de expansión urbana. El hecho que el centro urbano esté ubicado cerca el río Paraná puede influenciar la temperatura, manteniéndola más baja si se compara con las nuevas áreas de expansión urbana (figura \ref{mapaLocalizacao}, punto 2). Otros puntos que llaman la atención son: el hipermercado junto a la terminal de ómnibus y parte de la Avenida Quaranta (Ruta 12) (figura \ref{quatromapas}, mapa C - punto 2), Avenida Uruguay (figura \ref{quatromapas}, mapa C, punto 3) y la rotonda de la Avenida Costanera y Mitre (figura \ref{quatromapas}, mapa C, punto 4).
 
-Con el resultado de análisis de correlación *G*\*  (figura \ref{quatromapas}, mapa D) se puede percibir que las áreas clasificadas como urbanas y de Suelo Expuesto tuvieron la tendencia a formar agrupamientos de puntos cálidos (*hot spot*). Además de eso, llama la atención el hecho de que además de las áreas florestales, el río Paraná se configura como un área disipadora de calor, o como se acostumbra a llamar, islas de calor negativa (*sink island*).
+Con el resultado de análisis de correlación *G*\*  (figura \ref{quatromapas}, mapa D) se puede percibir que las áreas clasificadas como urbanas y de Suelo Desnudo tuvieron la tendencia a formar agrupamientos de puntos cálidos (*hot spot*). Además de eso, llama la atención el hecho de que además de las áreas de vegetación, el río Paraná se configura como un área disipadora de calor, o como se acostumbra a llamar, islas de calor negativa (*sink island*).
 
 ## Consideraciones finales
 
 Los análisis presentados son un ejercicio exploratorio y de aproximación necesarios para evolucionar hacia las herramientas más avanzadas para el análisis de islas de calor urbano. Este ejercicio inicial, pudo identificar varios puntos importantes que deberían ser mejor investigados, como la necesidad de hacer el mismo estudio considerando una serie temporal. 
 
-De esta manera, se podría intentar relacionar la tendencia observada en las áreas de cobertura florestal con la regulación climática. Quizás en el futuro, se podría prevér el gasto en energía para el uso de aire acondicionado, para llamar atención hacia los servicios ecosistémicos de las áreas florestales.
+De esta manera, se podría intentar relacionar la tendencia observada en las áreas con cobertura de vegetación con la regulación climática. Quizás en el futuro, se podría prever el gasto en energía para el uso de aire acondicionado, para llamar atención hacia los servicios ecosistémicos de las áreas de vegetación.
 
 # References

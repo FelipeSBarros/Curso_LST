@@ -1,10 +1,10 @@
 ---
 title: "Análisis de islas de calor urbano en Posadas, Misiones - Argentina"
 author: 
-- Felipe Sodré M. Barros ^[Instituto Misionero de Biodiversidad, Departamento de Geografía - Instituto Antonio Ruiz de Montoya]
+- Felipe Sodré M. Barros ^[Docente investigador Facultad de Ciencias Forestales - UNaM]
 - Erik Ruuth ^[Director Gral. Científico del Instituto Misionero de Biodiversidad]
 - Emanuel Grassi ^[Director Gral. Ejecutivo del Instituto Misionero de Biodiversidad]
-- Alejandro Roberto Vargas ^[Docente invevstigador Facultad de Ciencias Forestales UNaM]
+- Alejandro Roberto Vargas ^[Docente invevstigador Facultad de Ciencias Forestales - UNaM]
 - Juan Solari ^[Director Gral. de Sistemas de Información Geográfica del Instituto Misionero de Biodiversidad]
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 bibliography: bibliographyLST.bib
@@ -20,7 +20,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(RStoolbox)
+# library(RStoolbox)
 library(readr)
 library(pander)
 library(ggplot2)
@@ -29,21 +29,31 @@ library(magrittr)
 ```
 
 ## RESUMEN:
-**Palabras clave:**
+
+Los estudios sobre este tema pueden ayudar a guiar la toma de decisiones y la implementación de políticas para crear ciudades más sostenibles y habitables en el futuro.
+
+, y que la planificación urbana sostenible puede ser una herramienta efectiva para mitigar este efecto
+
+Las ICU pueden tener efectos perjudiciales sobre la salud humana, el consumo de energía y el medio ambiente, lo que hace que su estudio y mitigación sean importantes para la planificación urbana sostenible.
+
+Se pudo identificar, tal cual ya se esperaba, que el las temperaturas promedias en áreas construidas son X° más elevados que las áreas de bosque. Pero más allá de eso, se pudo percibir que el río Paraná comple un rol importante en el balance térmico por presentarse como un sumidero de las altas temperaturas. Como serguimiento, se sugiere replicar dicho estudio para todo el território de Msiones, y usando la seria historica de la misión LandSat.
+
+**Palabras clave:** Islas de Calor Urbana; Servicios ambientales;
 
 ## Introducción  
 
-**El proceso de expansión urbana y islas de calor**
+Las Islas de Calor Urbana (Urban Heat Island - UHI, en inglés) son fenómenos observados en áreas urbanas que suelen experimentar temperaturas más altas que las áreas rurales circundantes, debido a los cambios en el paisaje, como: el reemplazo de áreas verdes y suelos permeables con superficies pavimentadas y construcciones que absorben y retienen el calor.
 
-**Qué son islas de calor?**
+La relación entre la expansión urbana y la formación de islas de calor ha sido ampliamente estudiada (Zhou et al. en 2017 y Tan et al. en 2019), pricipalmente por medio de datos satelitales de temperatura de la superficie terrestre. Dichos estudios sugieren la expansión urbana como un factor importante en la formación de dichos fenómenos. 
 
-**Qué preguntas quiero responder?**
+Más allá de identificar la existencia de las islas de calor, una preocupación está en la identificación de sus efectos en la calidad de vida de la población y en los servicios ambientales. Un  servicio ambiental, según @DeGroot, se define como “flujo de bienes y servicios útiles para la sociedad humana” producidos por la naturaleza. Dentre tantos servicios está el de la regulación de la temperatura. Distintas investigaciones (Escobedo et al., 2011; Rahman et al., 2019, Li et al., 2019) lograron relacionar los servicios ecosistémicos que los bosques y espacios verdes urbanos pueden proporcionar a partir de la reducción del efecto de las islas de calor urbanas, mejorando la calidad de vida de la población. La comprensión de esta relación es importante para el desarrollo de políticas y estrategias de planificación urbana sostenible.
 
-Se desarrollaron diferentes indicadores para analizar las islas de calor dependiendo de sus coberturas ofreciendo los resultados como un servicio ambiental, en un ejercício de clasificación visual. Un  servicio ambiental, según @DeGroot, se define como “flujo de bienes y servicios útiles para la sociedad humana”.
+El presente trabajo hizo uso de imágenes satelitales para identificar sus potencialidades y límites en la identificación de las islas de calor urabanas en la ciudad de Posadas, Misiones, así como la cuantificación la temperatura en grados centígrados que puede llegar a haber entre los distintos tipos de uso de la tierra. En este sentido, se desarrollaron diferentes indicadores para analizar las islas de calor dependiendo de sus coberturas ofreciendo los resultados como un servicio ambiental.
+
 
 ## Área de estudio
 
-Enel presente estudio se analizó el municipio de Posadas, provincia de Misiones, Argentina que se ubica a las orillas del río Paraná en el límite Argentina/Paraguay al sur de la provincia (figura \ref{mapaLocalizacao}).
+En el presente estudio se analizó el municipio de Posadas, provincia de Misiones, Argentina que se ubica a las orillas del río Paraná en el límite Argentina/Paraguay al sur de la provincia (figura \ref{mapaLocalizacao}).
 
 ```{r, echo = FALSE, out.width = "150px", fig.cap="Mapa de localización de Posadas, Misiones - Argentina. \\label{mapaLocalizacao}", fig.align='center'}
 knitr::include_graphics("./plots/mapaLocalizacaoMod.png")
@@ -63,9 +73,9 @@ Para el presente estudio se utilizó el sensor `r m$SENSOR` del  satélite `r m$
 
 Para la corrección atmosférica se utilizaron los métodos de estimación de objetos oscuros y el algoritmo de *Simple dark object subtraction* - sdos [@rstoolbox]. Para la corrección topográfica, se descargó de la página del [Instituto Geográfico Nacional de Argentina (IGN)](https://www.ign.gob.ar/category/tem%C3%A1tica/geodesia/mde-ar) las escenas de Modelo Digital de Elevación (DEM, en inglés) que cubre todo el municipio de Posadas (escenas `2757-29` y `2757-30`).
 
-Para apoyar a la clasificación de la cobertura del suelo, algunos índices espectrales fueron creados, como el NDVI (*Normalized Difference Vegetation Index*), el EVI (*Enhanced Vegetation Index*) y el SAVI (*Soil Adjusted Vegetation Index*) para facilitar la identificación de áreas de vegetación o con actividad de fotosíntesis. Considerando la presencia de cuerpo de agua se utilizó el índice NDWI (*Normalized Difference Water Index*). Ya el índice NDBI (*Normalized Difference Build Index*) fue utilizado para facilitar la identificación de áreas construidas.
+Algunos indices espectrales fueron generados para apoyar a la clasificación de la cobertura del suelo, como el NDVI (*Normalized Difference Vegetation Index*), el EVI (*Enhanced Vegetation Index*) y el SAVI (*Soil Adjusted Vegetation Index*), que son ampliamente reconocidos por facilitar la identificación de áreas de vegetación, el índice NDWI (*Normalized Difference Water Index*) para auxiliar en la identificación de cuerpo de agua, el NDBI (*Normalized Difference Build Index*), por fin, fue utilizado para facilitar la identificación de áreas construidas (urbanas).
 
-Para la clasificación de cobertura del suelo, se utilizó el análisis [*Within-Cluster-Sum of Squared Errors (WSS)*](https://medium.com/analytics-vidhya/how-to-determine-the-optimal-k-for-k-means-708505d204eb). Con este análisis se pudo identificar que el área sería mejor mapeada con cinco clases por ser la primera cantidad de clases a reducir el *WSS error* de manera significativa. En la figura \ref{quatromapas} (mapa A) se presenta el municipio de Posadas con el resultado de clasificación no supervisada de cobertura del suelo. Luego de la clasificación, se hizo la interpretación visual de las clases creadas: 1 - Vegetación; 2 - Suelo Desnudo; 3 - Pastizal; 4 - Cuerpo de Agua; 5 - Área Urbana;
+Con el análisis [*Within-Cluster-Sum of Squared Errors (WSS)*](https://medium.com/analytics-vidhya/how-to-determine-the-optimal-k-for-k-means-708505d204eb) se pudo identificar que se podrías mapear el área en cinco clases distintas. Dicho valor surge por presentar bajo valor de *WSS error*. En la figura \ref{quatromapas} (mapa A) se presenta el municipio de Posadas con el resultado de clasificación no supervisada de cobertura del suelo. Luego de la clasificación, se hizo la interpretación visual de las clases creadas: 1 - Vegetación; 2 - Suelo Desnudo; 3 - Pastizal; 4 - Cuerpo de Agua; 5 - Área Urbana;
 
 Para identificar las Islas de Calor Urbano (*Spatial Urban Heat Island - SUHI*), se calculó la temperatura superficial de la tierra (*Land Surface Temperature (LST)*) (figura \ref{quatromapas}, mapa B) [@lstoolbox] y, en base a eso, se pudo calcular las estadísticas de Islas de Calor Urbano (*Urban Heat Island (UHI)*), en la cual se obtiene a cada clase de cobertura del suelo los valores de temperatura mínima, máxima, el promedio, la magnitud (su valor máximo menos el valor mínimo de temperatura), así como la diferencia de la temperatura promedio de la clase en relación a la clase de Área Urbana.
 
@@ -109,3 +119,9 @@ Los análisis presentados son un ejercicio exploratorio y de aproximación neces
 De esta manera, se podría intentar relacionar la tendencia observada en las áreas con cobertura de vegetación con la regulación climática. Quizás en el futuro, se podría prever el gasto en energía para el uso de aire acondicionado, para llamar atención hacia los servicios ecosistémicos de las áreas de vegetación.
 
 # References
+
+    Escobedo, F. J., Kroeger, T., & Wagner, J. E. (2011). Urban forests and pollution mitigation: Analyzing ecosystem services and disservices. Environmental Pollution, 159(8-9), 2078-2087.
+
+    Rahman, A., Liu, Z., & Zhang, W. (2019). The impact of urbanization and green space change on the surface urban heat island in the Beijing metropolitan area. Journal of Environmental Management, 232, 401-411.
+
+    Li, S., Li, P., Liu, J., & Li, Y. (2019). Spatial and temporal changes in ecosystem services and their relationships with land use in the Beijing–Tianjin–Hebei urban agglomeration from 2000 to 2015. Ecological Indicators, 104, 617-628.
